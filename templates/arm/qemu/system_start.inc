@@ -3,4 +3,5 @@
 "netmanager",
 "service telnetd",
 "service httpd",
+"duk fib.js",
 "tish",
