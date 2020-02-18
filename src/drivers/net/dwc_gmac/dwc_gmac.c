@@ -13,6 +13,7 @@
 
 #include <drivers/common/memory.h>
 
+#include <hal/mem_barriers.h>
 #include <hal/reg.h>
 #include <kernel/irq.h>
 
@@ -188,6 +189,7 @@ static int dwc_setup_txdesc(struct dwc_priv *priv, int idx, uint32_t buff,
 
 	desc->basic.des3 = (uint32_t) &priv->txdesc_ring_paddr[idx];
 
+	data_mem_barrier();
 	desc->basic.des0 |= TDES0_OWN;
 
 	return idx;
@@ -197,7 +199,11 @@ static int dwc_desc_wait_trans(struct dwc_priv *priv, int idx) {
 	struct dma_extended_desc *desc;
 
 	desc = &priv->txdesc_ring_paddr[idx];
-	do { } while (desc->basic.des0 & ETDES0_OWN);
+	do {
+		/* TODO: add timeout.
+		 * For some reason using usleep() here causes exception */
+		data_mem_barrier();
+	} while (desc->basic.des0 & ETDES0_OWN);
 
 	return idx;
 }
@@ -387,6 +393,7 @@ static uint32_t dwc_setup_rxdesc(struct dwc_priv *priv, int idx) {
 	idx %= RX_DESC_QUANTITY;
 	desc->basic.des3 = (uint32_t)&priv->rxdesc_ring_paddr[idx];
 
+	data_mem_barrier();
 	desc->basic.des0 = RDES0_OWN;
 
 	return idx;
@@ -405,6 +412,8 @@ static inline int dwc_rxfinish_locked(struct net_device *dev_id) {
 		cur_desc = priv->rxdesc_id;
 
 		desc = &((struct dma_extended_desc *)priv->rxdesc_ring_paddr)[cur_desc];
+
+		data_mem_barrier();
 
 		if (desc->basic.des0 & RDES0_OWN) {
 			return 0;
